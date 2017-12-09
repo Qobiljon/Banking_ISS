@@ -106,7 +106,7 @@ public class MainActivity extends AppCompatActivity {
             }
 
         logTextView.setText(log.toString());
-        balanceTextView.setText(String.valueOf(log.getBalance()));
+        balanceTextView.setText(Tools.putCommas(log.getBalance()));
     }
 
     public void customersClick(View root) {
@@ -192,7 +192,7 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 logTextView.setText(log.toString());
-                balanceTextView.setText(String.valueOf(log.getBalance()));
+                balanceTextView.setText(Tools.putCommas(log.getBalance()));
                 dialog.dismiss();
             }
         });
@@ -252,7 +252,7 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 logTextView.setText(log.toString());
-                balanceTextView.setText(String.valueOf(log.getBalance()));
+                balanceTextView.setText(Tools.putCommas(log.getBalance()));
                 dialog.dismiss();
             }
         });
@@ -355,7 +355,7 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 logTextView.setText(log.toString());
-                balanceTextView.setText(String.valueOf(log.getBalance()));
+                balanceTextView.setText(Tools.putCommas(log.getBalance()));
                 dialog.dismiss();
             }
         });
