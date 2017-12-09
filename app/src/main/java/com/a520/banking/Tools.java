@@ -1,8 +1,19 @@
+/*
+* This file contains utility classes and functions that support application's consistency.
+*
+* Information Systems Security
+* Course project: 520 Bank
+* Group: 520
+* Members: Kobiljon Toshnazarov
+ * Akhmadjon Abdullajanov
+ * Nematjon Narziev
+ * Saidrasulkhon Usmankhudjaev
+* */
+
 package com.a520.banking;
 
 import android.content.Context;
 import android.support.annotation.Nullable;
-import android.util.Log;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -13,7 +24,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
@@ -30,71 +40,84 @@ import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
 
 class Tools {
+    /*
+    * This class contains static utility functions for multiple usages within the application.
+    * This class also contains constant properties for application consistency.
+    * */
+
     // region Constants
     static final String ENCODING = "utf8";
     static final int PASSWORD_LENGTH = 8;
+    static final int USERNAME_MINLENGTH = 4;
     static final String NEWLINE = System.getProperty("line.separator");
     // endregion
 
     static boolean exists(Context context, String fileName) {
+        // function for checking existence of a file
         return new File(context.getFilesDir(), fileName).exists();
     }
 
-    static void writeString(Context context, String content, String fileName) {
-        try {
-            FileOutputStream fos = context.openFileOutput(fileName, Context.MODE_PRIVATE);
-            fos.write(content.getBytes(Tools.ENCODING));
-            fos.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+    static void writeString(Context context, String content, String fileName) throws IOException {
+        // function for writing string into a file
+        FileOutputStream fos = context.openFileOutput(fileName, Context.MODE_PRIVATE);
+        fos.write(content.getBytes(Tools.ENCODING));
+        fos.close();
     }
 
-    static String readString(Context context, String fileName) {
-        try {
-            FileInputStream fos = context.openFileInput(fileName);
-            ByteArrayOutputStream os = new ByteArrayOutputStream();
-            byte[] buf = new byte[64];
-            int read;
-            while ((read = fos.read(buf)) > 0)
-                os.write(buf, 0, read);
-            os.close();
-            fos.close();
-            return new String(os.toByteArray(), Tools.ENCODING);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return null;
+    static String readString(Context context, String fileName) throws IOException {
+        // return loaded byte array in string with utf-8 encoding
+        return new String(readBytes(context, fileName), Tools.ENCODING);
     }
 
-    static byte[] readBytes(Context context, String path) {
-        byte[] getBytes = {};
-        try {
-            File file = new File(context.getFilesDir(), path);
-            getBytes = new byte[(int) file.length()];
-            InputStream is = new FileInputStream(file);
-            if (is.read(getBytes) != getBytes.length)
-                Log.e("ERROR", "File is read but length is not the same [weird].");
-            is.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return getBytes;
+    static byte[] readBytes(Context context, String fileName) throws IOException {
+        // function for reading string, first open file input stream for reading byte[], and then byte array output stream for creating dynamic syze byte[]
+        FileInputStream fos = context.openFileInput(fileName);
+        ByteArrayOutputStream os = new ByteArrayOutputStream();
+
+        // create 64 byte size buffer
+        byte[] buf = new byte[64];
+        int read;
+        while ((read = fos.read(buf)) > 0)
+            os.write(buf, 0, read);
+
+        // close all streams after usage (clean after usage :)
+        os.close();
+        fos.close();
+
+        return os.toByteArray();
     }
 
-    static void writeBytes(Context context, byte[] rawBytes, String fileName) {
-        try {
-            File file = new File(context.getFilesDir(), fileName);
-            OutputStream os = new FileOutputStream(file);
-            os.write(rawBytes);
-            os.close();
-        } catch (IOException e) {
-            e.printStackTrace();
+    static void writeBytes(Context context, byte[] rawBytes, String fileName) throws IOException {
+        // create a new file object for writing
+        File file = new File(context.getFilesDir(), fileName);
+        // open a stream for writing raw bytes
+        OutputStream os = new FileOutputStream(file);
+        // write the raw bytes
+        os.write(rawBytes);
+        // close the opened stream
+        os.close();
+    }
+
+    static String putCommas(int amount) {
+        StringBuilder sb = new StringBuilder();
+        while (amount > 0) {
+            if (sb.length() > 0)
+                sb.insert(0, ',');
+            if (amount >= 1000)
+                sb.insert(0, String.format(Locale.US, "%03d", amount % 1000));
+            else
+                sb.insert(0, amount);
+            amount /= 1000;
         }
+        return sb.toString();
     }
 }
 
 class User {
+    /*
+    * This class creates, encrypts, decrypts, extracts customer-data from user's encrypted file.
+    * */
+
     // region Constants
     static final String FILE_FORMAT = "user";
     static final String HASH_MODE = "sha-1";
@@ -113,97 +136,87 @@ class User {
     // endregion
 
     static byte[] createSalt() throws NoSuchAlgorithmException, NoSuchProviderException {
+        // function for creation of a random secure salt for hashing
         byte[] salt = new byte[SALT_LENGTH];
         new SecureRandom().nextBytes(salt);
         return salt;
     }
 
-    static String hash(String plainText, byte[] saltBytes) {
-        try {
-            MessageDigest md = MessageDigest.getInstance(HASH_MODE);
+    static String hash(String plainText, byte[] saltBytes) throws NoSuchAlgorithmException, UnsupportedEncodingException {
+        // function for hasing input using saltBytes, and returning the resulting encrypted raw byte[]
+        MessageDigest md = MessageDigest.getInstance(HASH_MODE);
+        md.update(saltBytes);
 
-            md.update(saltBytes);
-            byte[] hashBytes = md.digest(plainText.getBytes(Tools.ENCODING));
+        byte[] hashBytes = md.digest(plainText.getBytes(Tools.ENCODING));
 
-            StringBuilder result = new StringBuilder();
-            for (byte b : hashBytes) {
-                int halfbyte = (b >>> 4) & 0x0F;
-                int two_halves = 0;
-                do {
-                    result.append((0 <= halfbyte) && (halfbyte <= 9) ? (char) ('0' + halfbyte) : (char) ('a' + (halfbyte - 10)));
-                    halfbyte = b & 0x0F;
-                } while (two_halves++ < 1);
-            }
-            return result.toString();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
+        StringBuilder result = new StringBuilder();
+        for (byte b : hashBytes) {
+            int halfbyte = (b >>> 4) & 0x0F;
+            int two_halves = 0;
+            do {
+                result.append((0 <= halfbyte) && (halfbyte <= 9) ? (char) ('0' + halfbyte) : (char) ('a' + (halfbyte - 10)));
+                halfbyte = b & 0x0F;
+            } while (two_halves++ < 1);
         }
+        return result.toString();
+
     }
 
-    static User getInstance(Context context, String username, String password) {
+    static User getInstance(Context context, String username, String password) throws Exception {
+        // function for creating an instance, securely checking existing files, and input data
         if (Tools.exists(context, String.format("%s.%s", username, FILE_FORMAT)))
-            return null;
+            throw new Exception("User file doesn't exist.");
 
-        try {
-            byte[] saltBytes = createSalt();
-            String passwordHash = hash(password, saltBytes);
-            return new User(username, saltBytes, passwordHash);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
+        byte[] saltBytes = createSalt();
+        String passwordHash = hash(password, saltBytes);
+        return new User(username, saltBytes, passwordHash);
     }
 
-    static User recover(Context context, String fileName) {
-        if (Tools.exists(context, fileName)) {
-            byte[] rawBytes = Tools.readBytes(context, fileName);
-            try {
-                String rawString = new String(rawBytes, Tools.ENCODING);
+    static User recover(Context context, String fileName) throws IOException {
+        // function for recovering a user's file from storage
+        byte[] rawBytes = Tools.readBytes(context, fileName);
+        String rawString = new String(rawBytes, Tools.ENCODING);
 
-                int startIndex = 0;
-                int index = rawString.indexOf(Tools.NEWLINE, startIndex);
-                String username = rawString.substring(startIndex, index);
+        int startIndex = 0;
+        int index = rawString.indexOf(Tools.NEWLINE, startIndex);
+        String username = rawString.substring(startIndex, index);
 
-                startIndex = index + Tools.NEWLINE.length();
-                index = rawString.indexOf(Tools.NEWLINE, startIndex);
-                String passwordHash = rawString.substring(startIndex, index);
+        startIndex = index + Tools.NEWLINE.length();
+        index = rawString.indexOf(Tools.NEWLINE, startIndex);
+        String passwordHash = rawString.substring(startIndex, index);
 
-                startIndex = index + Tools.NEWLINE.length();
-                byte[] saltBytes = Arrays.copyOfRange(rawBytes, startIndex, rawBytes.length);
+        startIndex = index + Tools.NEWLINE.length();
+        byte[] saltBytes = Arrays.copyOfRange(rawBytes, startIndex, rawBytes.length);
 
-                return new User(username, saltBytes, passwordHash);
-            } catch (UnsupportedEncodingException e) {
-                e.printStackTrace();
-            }
-        }
-        return null;
+        return new User(username, saltBytes, passwordHash);
     }
 
-    boolean checkPassword(String password) {
+    boolean checkPassword(String password) throws UnsupportedEncodingException, NoSuchAlgorithmException {
+        // function for comparing hash values for checking correctness of a given password
         return passwordHash.equals(hash(password, saltBytes));
     }
 
-    void writeToFile(Context context) {
-        try {
-            ByteArrayOutputStream os = new ByteArrayOutputStream();
+    void writeToFile(Context context) throws IOException {
+        // function for storing the current user object into storage
+        ByteArrayOutputStream os = new ByteArrayOutputStream();
 
-            os.write(username.getBytes(Tools.ENCODING));
-            os.write(Tools.NEWLINE.getBytes(Tools.ENCODING));
-            os.write(passwordHash.getBytes(Tools.ENCODING));
-            os.write(Tools.NEWLINE.getBytes(Tools.ENCODING));
-            os.write(saltBytes);
-            os.close();
+        os.write(username.getBytes(Tools.ENCODING));
+        os.write(Tools.NEWLINE.getBytes(Tools.ENCODING));
+        os.write(passwordHash.getBytes(Tools.ENCODING));
+        os.write(Tools.NEWLINE.getBytes(Tools.ENCODING));
+        os.write(saltBytes);
+        os.close();
 
-            Tools.writeBytes(context, os.toByteArray(), String.format("%s.%s", username, FILE_FORMAT));
-            os.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        Tools.writeBytes(context, os.toByteArray(), String.format("%s.%s", username, FILE_FORMAT));
+        os.close();
     }
 }
 
 class UserLog {
+    /*
+    * This class creates, encrypts, decrypts, extracts customer-data from user's encrypted file.
+    * */
+
     // region Constants
     static final String FILE_FORMAT = "log";
     static final String TMP_FORMAT = "tmp";
@@ -230,46 +243,36 @@ class UserLog {
     }
     // endregion
 
-    static boolean initLogFile(Context context, User user, String password) {
-        try {
-            ByteArrayOutputStream os = new ByteArrayOutputStream();
-            os.write(password.getBytes(Tools.ENCODING));
-            os.write(user.saltBytes);
-            os.close();
+    static void initLogFile(Context context, User user, String password) throws Exception {
+        // create a new user log file by encrypting it with user's plain password
+        ByteArrayOutputStream os = new ByteArrayOutputStream();
+        os.write(password.getBytes(Tools.ENCODING));
+        os.write(user.saltBytes);
+        os.close();
 
-            byte[] dataBytes = encrypt(os.toByteArray(), "[]");
-            String fileName = String.format(Locale.US, "%s.%s", user.username, FILE_FORMAT);
+        byte[] dataBytes = encrypt(os.toByteArray(), "[]");
+        String fileName = String.format(Locale.US, "%s.%s", user.username, FILE_FORMAT);
 
-            Tools.writeBytes(context, dataBytes, fileName);
-            return true;
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return false;
+        Tools.writeBytes(context, dataBytes, fileName);
     }
 
-    static UserLog recover(Context context, User user, String password) {
+    static UserLog recover(Context context, User user, String password) throws Exception {
+        // recover the encrypted userlog file
         String fileName = String.format(Locale.US, "%s.%s", user.username, UserLog.FILE_FORMAT);
 
-        if (Tools.exists(context, fileName)) {
-            try {
-                ByteArrayOutputStream os = new ByteArrayOutputStream();
-                os.write(password.getBytes(Tools.ENCODING));
-                os.write(user.saltBytes);
+        ByteArrayOutputStream os = new ByteArrayOutputStream();
+        os.write(password.getBytes(Tools.ENCODING));
+        os.write(user.saltBytes);
 
-                byte[] encKey = os.toByteArray();
-                JSONArray log = new JSONArray(decrypt(encKey, Tools.readBytes(context, fileName)));
-                UserLog result = new UserLog(log, encKey);
-                return result;
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-        return null;
+        byte[] encKey = os.toByteArray();
+        JSONArray log = new JSONArray(decrypt(encKey, Tools.readBytes(context, fileName)));
+        UserLog result = new UserLog(log, encKey);
+        return result;
     }
 
-    private static byte[] encrypt(byte[] encKey, String logText) throws Exception {
-        byte[] dataBytes = logText.getBytes("utf-8");
+    private static byte[] encrypt(byte[] encKey, String plain_data) throws Exception {
+        // function for encrypting plain string
+        byte[] dataBytes = plain_data.getBytes("utf-8");
 
         SecretKeySpec key = new SecretKeySpec(encKey, "aes");
         Cipher cipher = Cipher.getInstance("aes");
@@ -278,22 +281,23 @@ class UserLog {
         return cipher.doFinal(dataBytes);
     }
 
-    private static String decrypt(byte[] encKey, byte[] logEncBytes) throws Exception {
+    private static String decrypt(byte[] encKey, byte[] encrypted_data) throws Exception {
+        // function for decrypting encrypted data into string
         SecretKeySpec key = new SecretKeySpec(encKey, "aes");
         Cipher cipher = Cipher.getInstance("aes");
         cipher.init(Cipher.DECRYPT_MODE, key);
-        byte[] res = cipher.doFinal(logEncBytes);
+        byte[] res = cipher.doFinal(encrypted_data);
 
         return new String(res, "utf-8");
     }
 
     public boolean log(Context context, int operation, int amount, @Nullable String transferUsername) {
-        try {
-            Calendar logTime = GregorianCalendar.getInstance(Locale.US);
-            // for a complete meditation
-            if (operation != OP_DEPOSIT && amount > getBalance())
-                return false;
+        // function for logging a new action by customer
+        Calendar logTime = GregorianCalendar.getInstance(Locale.US);
+        if (operation != OP_DEPOSIT && amount > getBalance())
+            return false;
 
+        try {
             JSONObject item = new JSONObject();
             item.put("time", logTime.getTimeInMillis());
             item.put("operation", operation);
@@ -305,17 +309,18 @@ class UserLog {
             item.put("balance", balance += operation == OP_DEPOSIT ? amount : -amount);
             log.put(item);
             return true;
-        } catch (JSONException e) {
+        } catch (JSONException | IOException e) {
             e.printStackTrace();
         }
         return false;
     }
 
-    int getBalance() {
+    final int getBalance() {
         return balance;
     }
 
-    private void logTransfer(Context context, String username, int amount) throws JSONException {
+    private void logTransfer(Context context, String username, int amount) throws JSONException, IOException {
+        // function for storing a transfer action into recipient side's temporary file in a transfer
         String fileName = String.format(Locale.US, "%s.%s", username, TMP_FORMAT);
         JSONArray array;
 
@@ -333,6 +338,7 @@ class UserLog {
 
     @Override
     public String toString() {
+        // function for formatting object string for display purposes
         try {
             StringBuilder sb = new StringBuilder();
 
@@ -359,7 +365,7 @@ class UserLog {
                     sb.append(String.format(Locale.US, "Deposit                             %d", amount));
 
                 sb.append(Tools.NEWLINE);
-                sb.append(String.format(Locale.US, "Balance                            %d", balance));
+                sb.append(String.format(Locale.US, "Balance                            %s", Tools.putCommas(balance)));
                 sb.append(Tools.NEWLINE);
                 sb.append("----------------------------------------------------------------------------");
                 sb.append(Tools.NEWLINE);
@@ -372,40 +378,32 @@ class UserLog {
         }
     }
 
-    boolean updateDepositsIfNeeded(Context context, User user, String password) {
+    int acceptTransfers(Context context, User user, String password) throws Exception {
+        // function for accepting new transfer records found in customer's temporary file
         String tmpFileName = String.format(Locale.US, "%s.%s", user.username, TMP_FORMAT);
-        if (Tools.exists(context, tmpFileName))
-            try {
-                JSONArray tmpLog = new JSONArray(Tools.readString(context, tmpFileName));
-                for (int n = 0; n < tmpLog.length(); n++) {
-                    JSONObject tmpObject = tmpLog.getJSONObject(n);
-                    long time = tmpObject.getLong("time");
-                    int amount = tmpObject.getInt("amount");
+        JSONArray tmpLog = new JSONArray(Tools.readString(context, tmpFileName));
+        int count;
+        for (count = 0; count < tmpLog.length(); count++) {
+            JSONObject tmpObject = tmpLog.getJSONObject(count);
+            long time = tmpObject.getLong("time");
+            int amount = tmpObject.getInt("amount");
 
-                    JSONObject item = new JSONObject();
-                    item.put("time", time);
-                    item.put("operation", OP_DEPOSIT);
-                    item.put("amount", amount);
-                    item.put("balance", balance += amount);
-                    log.put(item);
-                }
-                writeToFile(context, user, password);
-                new File(context.getFilesDir(), tmpFileName).delete();
-                return true;
-            } catch (JSONException e) {
-                e.printStackTrace();
-                return false;
-            }
-        return true;
+            JSONObject item = new JSONObject();
+            item.put("time", time);
+            item.put("operation", OP_DEPOSIT);
+            item.put("amount", amount);
+            item.put("balance", balance += amount);
+            log.put(item);
+        }
+        writeToFile(context, user, password);
+        new File(context.getFilesDir(), tmpFileName).delete();
+        return count;
     }
 
-    void writeToFile(Context context, User user, String password) {
+    void writeToFile(Context context, User user, String password) throws Exception {
+        // function for storing the current user's user-log object into storage
         String fileName = String.format(Locale.US, "%s.%s", user.username, UserLog.FILE_FORMAT);
-        try {
-            byte[] contentBytes = encrypt(encKey, log.toString());
-            Tools.writeBytes(context, contentBytes, fileName);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        byte[] contentBytes = encrypt(encKey, log.toString());
+        Tools.writeBytes(context, contentBytes, fileName);
     }
 }
