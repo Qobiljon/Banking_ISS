@@ -40,13 +40,9 @@ class Tools {
         return new File(context.getFilesDir(), fileName).exists();
     }
 
-    static void writeString(Context context, String content, String fileName, boolean append) {
+    static void writeString(Context context, String content, String fileName) {
         try {
-            FileOutputStream fos;
-            if (append)
-                fos = context.openFileOutput(fileName, Context.MODE_APPEND);
-            else
-                fos = context.openFileOutput(fileName, Context.MODE_PRIVATE);
+            FileOutputStream fos = context.openFileOutput(fileName, Context.MODE_PRIVATE);
             fos.write(content.getBytes(Tools.ENCODING));
             fos.close();
         } catch (IOException e) {
@@ -212,10 +208,12 @@ class UserLog {
     static final String FILE_FORMAT = "log";
     static final String TMP_FORMAT = "tmp";
     static final String ENC_MODE = "aes";
+
     static final int OP_DEPOSIT = 0;
-    // endregion
     static final int OP_WITHDRAW = 1;
     static final int OP_TRANSFER = 2;
+    // endregion
+
     // region Variables
     JSONArray log;
     private byte[] encKey;
@@ -320,19 +318,17 @@ class UserLog {
     private void logTransfer(Context context, String username, int amount) throws JSONException {
         String fileName = String.format(Locale.US, "%s.%s", username, TMP_FORMAT);
         JSONArray array;
-        boolean appendOnExistingFile;
 
-        if (appendOnExistingFile = Tools.exists(context, fileName))
+        if (Tools.exists(context, fileName))
             array = new JSONArray(Tools.readString(context, fileName));
-        else
-            array = new JSONArray();
+        else array = new JSONArray();
 
         JSONObject object = new JSONObject();
         object.put("time", Calendar.getInstance().getTimeInMillis());
         object.put("amount", amount);
         array.put(object);
 
-        Tools.writeString(context, array.toString(), fileName, appendOnExistingFile);
+        Tools.writeString(context, array.toString(), fileName);
     }
 
     @Override
