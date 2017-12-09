@@ -1,0 +1,19 @@
+<resources>
+    <string name="app_name">520 Bank</string>
+    <string name="log_in">Log in</string>
+    <string name="register">Register</string>
+    <string name="username">Username</string>
+    <string name="password">Password</string>
+    <string name="erase">delete all data</string>
+    <string name="customers">customers</string>
+    <string name="deposit">deposit</string>
+    <string name="withdraw">withdraw</string>
+    <string name="transfer">transfer</string>
+    <string name="balance">Balance</string>
+    <string name="_0">0</string>
+    <string name="won">Won</string>
+    <string name="delete">Delete user</string>
+    <string name="log_out">Log out</string>
+    <string name="log_in_hint">Please authenticate to the system now.</string>
+    <string name="current_user_hint">User: %1$s</string>
+</resources>

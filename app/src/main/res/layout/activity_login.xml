@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/layout_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_sign_screen"
+    android:gravity="center"
+    android:orientation="vertical"
+    tools:context="com.a520.banking.LoginActivity"
+    tools:ignore="UselessParent">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:drawablePadding="10dp"
+        android:drawableStart="@drawable/ic_launcher_background"
+        android:text="@string/app_name"
+        android:textColor="@android:color/white"
+        android:textSize="40sp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="120dp"
+        android:text="@string/log_in_hint"
+        android:textColor="@color/white" />
+
+    <AutoCompleteTextView
+        android:id="@+id/textview_login"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="50dp"
+        android:layout_marginRight="50dp"
+        android:layout_marginTop="10dp"
+        android:background="@color/white"
+        android:completionThreshold="1"
+        android:hint="@string/username"
+        android:imeOptions="actionDone"
+        android:inputType="textShortMessage"
+        android:padding="13dp"
+        android:scrollHorizontally="true"
+        android:textColor="@color/colorPrimaryDark"
+        android:textColorHint="@android:color/darker_gray" />
+
+    <EditText
+        android:id="@+id/textview_password"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="50dp"
+        android:layout_marginRight="50dp"
+        android:layout_marginTop="10dp"
+        android:background="@color/white"
+        android:hint="@string/password"
+        android:inputType="textPassword"
+        android:padding="13dp"
+        android:scrollHorizontally="true"
+        android:textColor="@color/colorPrimaryDark"
+        android:textColorHint="@android:color/darker_gray" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="50dp"
+        android:layout_marginRight="50dp"
+        android:layout_marginTop="70dp">
+
+        <Button
+            android:id="@+id/button_login"
+            style="?android:attr/buttonBarButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="5dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_button"
+            android:drawableStart="@drawable/log_in"
+            android:onClick="logInClick"
+            android:padding="18dp"
+            android:text="@string/log_in"
+            android:textColor="@color/colorPrimaryDark" />
+
+        <Button
+            android:id="@+id/button_register"
+            style="?android:attr/buttonBarButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="5dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_button"
+            android:drawableStart="@drawable/register"
+            android:onClick="registerClick"
+            android:padding="18dp"
+            android:text="@string/register"
+            android:textColor="@color/colorPrimaryDark" />
+
+    </LinearLayout>
+
+</LinearLayout>
