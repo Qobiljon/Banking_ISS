@@ -358,11 +358,11 @@ class UserLog {
 
                 if (operation == UserLog.OP_TRANSFER) {
                     String transferUsername = object.getString("transferred-to");
-                    sb.append(String.format(Locale.US, "Transfer to %s         %d", transferUsername, -amount));
+                    sb.append(String.format(Locale.US, "Transfer to %s         %s", transferUsername, Tools.putCommas(amount)));
                 } else if (operation == OP_WITHDRAW)
-                    sb.append(String.format(Locale.US, "Withdraw                            %d", -amount));
+                    sb.append(String.format(Locale.US, "Withdraw                            -%s", Tools.putCommas(amount)));
                 else if (operation == OP_DEPOSIT)
-                    sb.append(String.format(Locale.US, "Deposit                             %d", amount));
+                    sb.append(String.format(Locale.US, "Deposit                             %s", Tools.putCommas(amount)));
 
                 sb.append(Tools.NEWLINE);
                 sb.append(String.format(Locale.US, "Balance                            %s", Tools.putCommas(balance)));
