@@ -93,40 +93,19 @@
 
         </LinearLayout>
 
-        <LinearLayout
+        <Button
+            android:id="@+id/button_logout"
+            style="?android:attr/buttonBarButtonStyle"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-
-            <Button
-                style="?android:attr/buttonBarButtonStyle"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_margin="2dp"
-                android:layout_weight="1"
-                android:background="@drawable/bg_button"
-                android:drawableStart="@drawable/delete"
-                android:onClick="deleteUserClick"
-                android:paddingEnd="5dp"
-                android:paddingStart="5dp"
-                android:text="@string/delete"
-                android:textColor="@color/colorPrimaryDark" />
-
-            <Button
-                android:id="@+id/button_logout"
-                style="?android:attr/buttonBarButtonStyle"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_margin="2dp"
-                android:layout_weight="1"
-                android:background="@drawable/bg_button"
-                android:drawableStart="@drawable/log_out"
-                android:onClick="logoutClick"
-                android:paddingEnd="5dp"
-                android:paddingStart="5dp"
-                android:text="@string/log_out"
-                android:textColor="@color/colorPrimaryDark" />
-
-        </LinearLayout>
+            android:layout_height="wrap_content"
+            android:layout_margin="2dp"
+            android:background="@drawable/bg_button"
+            android:drawableStart="@drawable/profile"
+            android:onClick="profileClick"
+            android:paddingEnd="5dp"
+            android:paddingStart="5dp"
+            android:text="@string/profile"
+            android:textColor="@color/colorPrimaryDark" />
 
     </LinearLayout>
 

@@ -16,4 +16,10 @@
     <string name="log_out">Log out</string>
     <string name="log_in_hint">Please authenticate to the system now.</string>
     <string name="current_user_hint">User: %1$s</string>
+    <string name="text_decrypt_title">%1$s views %2$s\'s logs</string>
+    <string name="profile">profile</string>
+    <string name="change_password">edit pass.</string>
+    <string name="close">close</string>
+    <string name="decryption">Log decryption:</string>
+    <string name="decryption_failure">[Decryption failure occurred]</string>
 </resources>

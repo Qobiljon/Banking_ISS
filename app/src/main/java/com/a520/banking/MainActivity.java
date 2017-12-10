@@ -19,12 +19,11 @@ import android.support.v7.app.AppCompatActivity;
 import android.text.InputType;
 import android.view.View;
 import android.widget.ArrayAdapter;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.io.File;
+import java.util.ArrayList;
 import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
@@ -32,7 +31,6 @@ public class MainActivity extends AppCompatActivity {
     // region Variables
     private TextView logTextView;
     private TextView balanceTextView;
-    private Button logOutButton;
     private User user;
     private UserLog log;
     private String password;
@@ -50,22 +48,51 @@ public class MainActivity extends AppCompatActivity {
         finish();
         overridePendingTransition(R.anim.activity_in, R.anim.activity_out);
     }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == 2 && resultCode == 2) {
+            if (data.getBooleanExtra("logout", false)) {
+                logOut();
+                return;
+            }
+
+            try {
+                user = User.recover(this, data.getStringExtra("username"));
+                log = UserLog.recover(this, user, password = data.getStringExtra("password"));
+            } catch (Exception e) {
+                e.printStackTrace();
+
+                // this case will occur only if user intentionally edits the file hacking the android system storage location /data
+                AlertDialog.Builder builder = new AlertDialog.Builder(this);
+                builder.setTitle("Errors on this user's files");
+                builder.setMessage("Please, refer to application administrator!!");
+                builder.setNegativeButton("Close", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int i) {
+                        dialog.dismiss();
+                    }
+                });
+                builder.show();
+            }
+        }
+    }
     // endregion
 
     private void initialize(Intent intent) {
         // region UI Variables
         logTextView = findViewById(R.id.textview_log);
         balanceTextView = findViewById(R.id.textview_balance);
-        logOutButton = findViewById(R.id.button_logout);
         TextView userTextView = findViewById(R.id.textview_user);
         // endregion
 
         // recover user data from files
         password = intent.getStringExtra("password");
 
-        String userFileName = String.format(Locale.US, "%s.%s", intent.getStringExtra("username"), User.FILE_FORMAT);
         try {
-            user = User.recover(this, userFileName);
+            user = User.recover(this, intent.getStringExtra("username"));
             log = UserLog.recover(this, user, password);
             // set username as title
             userTextView.setText(String.format(Locale.US, getResources().getString(R.string.current_user_hint), user.username));
@@ -88,7 +115,7 @@ public class MainActivity extends AppCompatActivity {
 
         if (Tools.exists(this, String.format(Locale.US, "%s.%s", user.username, UserLog.TMP_FORMAT)))
             try {
-                int count = log.acceptTransfers(this, user, password);
+                int count = log.acceptTransfers(this, password);
                 Toast.makeText(this, String.format(Locale.US, "There are %d new money transfer records.", count), Toast.LENGTH_SHORT).show();
             } catch (Exception e) {
                 e.printStackTrace();
@@ -111,10 +138,14 @@ public class MainActivity extends AppCompatActivity {
 
     public void customersClick(View root) {
         // load customers' names from storage, except the requesting customer's username
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.select_dialog_item);
-        for (File file : getFilesDir().listFiles())
-            if (file.getName().endsWith(User.FILE_FORMAT) && !file.getName().equals(String.format(Locale.US, "%s.%s", user.username, User.FILE_FORMAT)))
-                adapter.add(file.getName().substring(0, file.getName().lastIndexOf('.')));
+        ArrayList<String> userList;
+        try {
+            userList = User.listUsernames(this);
+        } catch (Exception e) {
+            return;
+        }
+
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.select_dialog_item, userList);
 
         // the case when there is no other customers than the requesting one
         if (adapter.getCount() == 0) {
@@ -142,8 +173,14 @@ public class MainActivity extends AppCompatActivity {
         });
         builder.setAdapter(adapter, new DialogInterface.OnClickListener() {
             @Override
-            public void onClick(DialogInterface dialogInterface, int i) {
-
+            public void onClick(DialogInterface dialog, int index) {
+                String customer = ((String) ((AlertDialog) dialog).getListView().getItemAtPosition(index));
+                Intent intent = new Intent(MainActivity.this, DecryptionActivity.class);
+                intent.putExtra("username", user.username);
+                intent.putExtra("password", password);
+                intent.putExtra("customer", customer);
+                startActivity(intent);
+                overridePendingTransition(R.anim.activity_in, R.anim.activity_out);
             }
         });
         builder.show();
@@ -171,7 +208,7 @@ public class MainActivity extends AppCompatActivity {
                 // log the activity into customer's log file
                 if (log.log(MainActivity.this, UserLog.OP_DEPOSIT, Integer.parseInt(data), null))
                     try {
-                        log.writeToFile(MainActivity.this, user, password);
+                        log.writeToFile(MainActivity.this, password);
                     } catch (Exception e) {
                         e.printStackTrace();
                         AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
@@ -231,7 +268,7 @@ public class MainActivity extends AppCompatActivity {
                 // log the activity into customer's log file
                 if (log.log(MainActivity.this, UserLog.OP_WITHDRAW, amount, null))
                     try {
-                        log.writeToFile(MainActivity.this, user, password);
+                        log.writeToFile(MainActivity.this, password);
                     } catch (Exception e) {
                         e.printStackTrace();
                         AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
@@ -267,10 +304,15 @@ public class MainActivity extends AppCompatActivity {
 
     public void transferClick(View view) {
         // load customers' names from storage, except the requesting customer's username
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.select_dialog_item);
-        for (File file : getFilesDir().listFiles())
-            if (file.getName().endsWith(User.FILE_FORMAT) && !file.getName().equals(String.format(Locale.US, "%s.%s", user.username, User.FILE_FORMAT)))
-                adapter.add(file.getName().substring(0, file.getName().lastIndexOf('.')));
+        ArrayList<String> userList;
+        try {
+            userList = User.listUsernames(this);
+            userList.remove(user.username);
+        } catch (Exception e) {
+            return;
+        }
+
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.select_dialog_item, userList);
 
         // the case when there is no other customers than the requesting one
         if (adapter.getCount() == 0) {
@@ -334,7 +376,7 @@ public class MainActivity extends AppCompatActivity {
                 // log the activity into customer's log file
                 if (log.log(MainActivity.this, UserLog.OP_TRANSFER, amount, username))
                     try {
-                        log.writeToFile(MainActivity.this, user, password);
+                        log.writeToFile(MainActivity.this, password);
                     } catch (Exception e) {
                         e.printStackTrace();
                         AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
@@ -368,39 +410,18 @@ public class MainActivity extends AppCompatActivity {
         alert.show();
     }
 
-    public void deleteUserClick(View view) {
-        // show dialog for confirming before starting user-deletion process
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Delete your profile?");
-        builder.setMessage("Please confirm whether you want to delete your profile or not.");
-        builder.setNegativeButton("No, don't delete it.", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int i) {
-                dialog.dismiss();
-            }
-        });
-        builder.setPositiveButton("Delete it, now!", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialogInterface, int i) {
-                // for convenience, count number of deleted files, and display as a toast
-                int count = 0;
-                if (new File(getFilesDir(), String.format(Locale.US, "%s.%s", user.username, UserLog.TMP_FORMAT)).delete())
-                    count++;
-                if (new File(getFilesDir(), String.format(Locale.US, "%s.%s", user.username, UserLog.FILE_FORMAT)).delete())
-                    count++;
-                if (new File(getFilesDir(), String.format(Locale.US, "%s.%s", user.username, User.FILE_FORMAT)).delete())
-                    count++;
-                Toast.makeText(MainActivity.this, String.format(Locale.US, "Overall %d user-related files have been deleted!", count), Toast.LENGTH_SHORT).show();
-                logOutButton.performClick();
-            }
-        });
-        builder.show();
+    public void profileClick(View view) {
+        Intent intent = new Intent(this, ProfileActivity.class);
+        intent.putExtra("username", user.username);
+        intent.putExtra("password", password);
+        startActivityForResult(intent, 2);
+        overridePendingTransition(R.anim.activity_in, R.anim.activity_out);
     }
 
-    public void logoutClick(View view) {
+    private void logOut() {
         // log out and switch from main window into log in window
         startActivity(new Intent(this, LoginActivity.class));
-        overridePendingTransition(R.anim.activity_in, R.anim.activity_out);
+        overridePendingTransition(R.anim.activity_in, 0);
         finish();
     }
 }

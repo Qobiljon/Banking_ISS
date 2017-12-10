@@ -21,7 +21,8 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.io.File;
+import org.json.JSONException;
+
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.security.NoSuchAlgorithmException;
@@ -51,6 +52,15 @@ public class LoginActivity extends AppCompatActivity {
     // endregion
 
     private void initialize() {
+        ArrayList<String> users;
+        try {
+            User.init(this);
+            users = User.listUsernames(this);
+        } catch (IOException | JSONException e) {
+            e.printStackTrace();
+            return;
+        }
+
         // region UI Variables
         usernameTextView = findViewById(R.id.textview_login);
         passwordTextView = findViewById(R.id.textview_password);
@@ -58,12 +68,6 @@ public class LoginActivity extends AppCompatActivity {
         // endregion
 
         // for username autocompletion, load existing username-list from storage, set into adapter, and request next view on username click
-        ArrayList<String> users = new ArrayList<>();
-        for (File file : getFilesDir().listFiles()) {
-            String fileName = file.getName();
-            if (fileName.endsWith(User.FILE_FORMAT))
-                users.add(fileName.substring(0, fileName.lastIndexOf('.')));
-        }
         ArrayAdapter<String> usrAdapter = new ArrayAdapter<>(this, android.R.layout.select_dialog_item, users);
         usernameTextView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
@@ -79,12 +83,11 @@ public class LoginActivity extends AppCompatActivity {
         String password = passwordTextView.getText().toString();
 
         // try to recover the user (if exists)
-        String userFileName = String.format("%s.%s", username, User.FILE_FORMAT);
         User user;
-        if (Tools.exists(this, userFileName))
+        if (User.exists(this, username))
             try {
-                user = User.recover(this, userFileName);
-            } catch (IOException e) {
+                user = User.recover(this, username);
+            } catch (IOException | JSONException e) {
                 e.printStackTrace();
                 Toast.makeText(this, "Wrong credentials, please try again!", Toast.LENGTH_SHORT).show();
                 return;
@@ -117,14 +120,16 @@ public class LoginActivity extends AppCompatActivity {
         String password = passwordTextView.getText().toString();
 
         // check username length (minimum 4 for convenience)
-        if (username.length() < Tools.USERNAME_MINLENGTH) {
-            Toast.makeText(this, String.format(Locale.US, String.format(Locale.US, "Username must be at least %d characters!", Tools.USERNAME_MINLENGTH), Tools.PASSWORD_LENGTH), Toast.LENGTH_SHORT).show();
+        if (username.length() < User.USERN_MINLEN || username.length() > User.USERN_MAXLEN) {
+            Toast.makeText(this, String.format(Locale.US, String.format(Locale.US, "Username length must be between %d and %d characters!", User.USERN_MINLEN, User.USERN_MAXLEN), User.USERN_MAXLEN), Toast.LENGTH_SHORT).show();
+            usernameTextView.requestFocus();
             return;
         }
 
         // strictly check the length of password (8 characters), because length of salt and password must be 16 (per 8 bytes)
-        if (password.length() != Tools.PASSWORD_LENGTH) {
-            Toast.makeText(this, String.format(Locale.US, "Password must be strictly %d characters!", Tools.PASSWORD_LENGTH), Toast.LENGTH_SHORT).show();
+        if (password.length() < User.PASSW_MINLEN || password.length() > User.PASSW_MAXLEN) {
+            Toast.makeText(this, String.format(Locale.US, "Password length must be between %d and %d characters!", User.PASSW_MINLEN, User.PASSW_MAXLEN), Toast.LENGTH_SHORT).show();
+            passwordTextView.requestFocus();
             return;
         }
 
@@ -134,7 +139,7 @@ public class LoginActivity extends AppCompatActivity {
             user = User.getInstance(this, username, password);
         } catch (Exception e) {
             e.printStackTrace();
-            Toast.makeText(this, "Username already exists, please choose some other username!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "This username is occupied, please choose some other username!", Toast.LENGTH_SHORT).show();
             return;
         }
 
