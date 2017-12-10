@@ -33,13 +33,14 @@ import java.security.NoSuchProviderException;
 import java.security.SecureRandom;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.Iterator;
 import java.util.Locale;
 
 import javax.crypto.Cipher;
-import javax.crypto.SecretKey;
+import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 class Tools {
@@ -49,7 +50,7 @@ class Tools {
     * */
 
     // region Constants
-    static final String ENCODING = "utf8";
+    static final String ENCODING = "UTF-8";
     static final String NEWLINE = System.getProperty("line.separator");
     // endregion
 
@@ -70,7 +71,7 @@ class Tools {
         return new String(readBytes(context, fileName), Tools.ENCODING);
     }
 
-    private static byte[] readBytes(Context context, String fileName) throws IOException {
+    static byte[] readBytes(Context context, String fileName) throws IOException {
         // function for reading string, first open file input stream for reading byte[], and then byte array output stream for creating dynamic syze byte[]
         FileInputStream fos = context.openFileInput(fileName);
         ByteArrayOutputStream os = new ByteArrayOutputStream();
@@ -121,15 +122,16 @@ class User {
     * This class creates, encrypts, decrypts, extracts customer-data from user's encrypted file.
     * */
 
+    // region Constants
     static final String HASH_MODE = "sha-1";
     static final int ENC_KEY_LEN = 16;
     static final int PASSW_MINLEN = 4;
     static final int PASSW_MAXLEN = 14;
     static final int USERN_MINLEN = 4;
     static final int USERN_MAXLEN = 16;
-    // region Constants
     private static final String FILE_NAME = "users.json";
     // endregion
+
     // region Variables
     String username;
     String salt;
@@ -252,16 +254,19 @@ class UserLog {
     // region Constants
     static final String FILE_FORMAT = "log";
     static final String TMP_FORMAT = "tmp";
-    static final String ENCRYPTION = "aes";
+    static final String ENCRYPTION = "aes/cbc/nopadding";
     static final int OP_DEPOSIT = 0;
     static final int OP_WITHDRAW = 1;
     static final int OP_TRANSFER = 2;
+    static final IvParameterSpec iv = new IvParameterSpec(new byte[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16});
+    // endregion
+
     // region Variables
     private JSONArray log;
-    // endregion
     private byte[] encKey;
     private int balance;
     private String username;
+    // endregion
 
     private UserLog(String username, JSONArray log, byte[] encKey) throws JSONException {
         this.username = username;
@@ -273,7 +278,6 @@ class UserLog {
         else
             this.balance = 0;
     }
-    // endregion
 
     static void initLogFile(Context context, User user, String password) throws Exception {
         // create a new user log file by encrypting it with user's plain password
@@ -282,8 +286,8 @@ class UserLog {
         os.write(Base64.decode(user.salt, Base64.DEFAULT));
         os.close();
 
-        String encrypted = encrypt(os.toByteArray(), "[]");
-        Tools.writeString(context, encrypted, String.format(Locale.US, "%s.%s", user.username, FILE_FORMAT));
+        byte[] encrypted = encrypt(os.toByteArray(), "[]".getBytes(Tools.ENCODING));
+        Tools.writeBytes(context, encrypted, String.format(Locale.US, "%s.%s", user.username, FILE_FORMAT));
     }
 
     static UserLog recover(Context context, User user, String password) throws Exception {
@@ -295,25 +299,37 @@ class UserLog {
         os.write(Base64.decode(user.salt, Base64.DEFAULT));
 
         byte[] encKey = os.toByteArray();
-        JSONArray log = new JSONArray(decrypt(encKey, Tools.readString(context, fileName)));
+        JSONArray log = new JSONArray(new String(decrypt(encKey, Tools.readBytes(context, fileName)), Tools.ENCODING));
         UserLog result = new UserLog(user.username, log, encKey);
         return result;
     }
 
-    static String encrypt(byte[] encKey, String plain_data) throws Exception {
-        SecretKeySpec keySpec = new SecretKeySpec(encKey, ENCRYPTION);
-        Cipher cipher = Cipher.getInstance(String.format("%s", ENCRYPTION));
-        cipher.init(Cipher.ENCRYPT_MODE, keySpec);
-        byte[] encrypted = cipher.doFinal(plain_data.getBytes(Tools.ENCODING));
-        return Base64.encodeToString(encrypted, Base64.DEFAULT);
+    static byte[] encrypt(byte[] encKey, byte[] plain_data) throws Exception {
+        SecretKeySpec keySpec = new SecretKeySpec(encKey, ENCRYPTION.substring(0, 3));
+        Cipher cipher = Cipher.getInstance(ENCRYPTION);
+        cipher.init(Cipher.ENCRYPT_MODE, keySpec, iv);
+
+        ByteArrayOutputStream os = new ByteArrayOutputStream();
+        os.write(plain_data);
+        if (plain_data.length % 16 != 0)
+            os.write(new byte[16 * (int) Math.ceil((float) plain_data.length / 16) - plain_data.length]);
+
+        return cipher.doFinal(os.toByteArray());
     }
 
-    static String decrypt(byte[] encKey, String encrypted_data) throws Exception {
-        SecretKey key = new SecretKeySpec(encKey, ENCRYPTION);
-        Cipher cipher = Cipher.getInstance(String.format("%s", ENCRYPTION));
-        cipher.init(Cipher.DECRYPT_MODE, key);
-        byte[] clearText = cipher.doFinal(Base64.decode(encrypted_data, Base64.DEFAULT));
-        return new String(clearText, Tools.ENCODING);
+    static byte[] decrypt(byte[] encKey, byte[] encrypted_data) throws Exception {
+        if (encrypted_data.length == 0)
+            return new byte[0];
+
+        SecretKeySpec key = new SecretKeySpec(encKey, ENCRYPTION.substring(0, 3));
+        Cipher cipher = Cipher.getInstance(ENCRYPTION);
+        cipher.init(Cipher.DECRYPT_MODE, key, iv);
+        byte[] clearText = cipher.doFinal(encrypted_data);
+
+        int stopByte = clearText.length - 1;
+        while (clearText[stopByte] == 0) stopByte--;
+
+        return Arrays.copyOfRange(clearText, 0, stopByte + 1);
     }
 
     @Override
@@ -438,7 +454,7 @@ class UserLog {
 
     void writeToFile(Context context, String password) throws Exception {
         // function for storing the current user's user-log object into storage
-        String encrypted = encrypt(encKey, log.toString());
-        Tools.writeString(context, encrypted, String.format(Locale.US, "%s.%s", username, UserLog.FILE_FORMAT));
+        byte[] encrypted = encrypt(encKey, log.toString().getBytes(Tools.ENCODING));
+        Tools.writeBytes(context, encrypted, String.format(Locale.US, "%s.%s", username, UserLog.FILE_FORMAT));
     }
 }

@@ -36,8 +36,8 @@ public class DecryptionActivity extends AppCompatActivity {
             os.write(password.getBytes(Tools.ENCODING));
             os.write(Base64.decode(User.recover(this, username).salt, Base64.DEFAULT));
             byte[] encKey = os.toByteArray();
-            String decData = UserLog.decrypt(encKey, Tools.readString(this, String.format(Locale.US, "%s.%s", customer, UserLog.FILE_FORMAT)));
-            dataText.setText(decData);
+            byte[] decData = UserLog.decrypt(encKey, Tools.readBytes(this, String.format(Locale.US, "%s.%s", customer, UserLog.FILE_FORMAT)));
+            dataText.setText(new String(decData, Tools.ENCODING));
         } catch (Exception e) {
             e.printStackTrace();
             dataText.setText(R.string.decryption_failure);
